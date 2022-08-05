@@ -2,8 +2,8 @@ const std = @import("std");
 const vk = @import("vulkan");
 const glfw = @import("glfw");
 const resources = @import("resources");
-const GraphicsContext = @import("graphics_context.zig").GraphicsContext;
-const Swapchain = @import("swapchain.zig").Swapchain;
+const GraphicsContext = @import("graphics/context.zig").GraphicsContext;
+const Swapchain = @import("graphics/swapchain.zig").Swapchain;
 const Allocator = std.mem.Allocator;
 
 const app_name = "Zigneous";
@@ -47,7 +47,7 @@ pub fn main() !void {
     var extent = vk.Extent2D{ .width = 800, .height = 600 };
 
     const window = try glfw.Window.create(extent.width, extent.height, app_name, null, null, .{
-        .client_api = .no_api,
+        .client_api = .no_api, .resizable = false,
     });
     defer window.destroy();
 
