@@ -27,6 +27,12 @@ pub fn build(b: *std.build.Builder) void {
     // mach-glfw
     exe.addPackagePath("glfw", "lib/mach-glfw/src/main.zig");
     glfw.link(b, exe, .{});
+    
+    // shader resources, to be compiled using glslc
+    const res = zigvulkan.ResourceGenStep.init(b, "resources.zig");
+    res.addShader("triangle_vert", "dat/triangle.vert");
+    res.addShader("triangle_frag", "dat/triangle.frag");
+    exe.addPackage(res.package);
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());
