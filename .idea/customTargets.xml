@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CLionExternalBuildManager">
+    <target id="2630bab6-e393-42ac-94bd-a069e93a01c0" name="Zig Build" defaultType="TOOL">
+      <configuration id="e8d69dbf-ca06-4603-95d9-d9ff0ff9d0af" name="Zig Build">
+        <build type="TOOL">
+          <tool actionId="Tool_External Tools_Zig Build" />
+        </build>
+      </configuration>
+    </target>
+  </component>
+</project>
