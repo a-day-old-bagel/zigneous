@@ -1,5 +1,9 @@
 const std = @import("std");
 
+const glfw = @import("lib/mach-glfw/build.zig");
+const vkgen = @import("lib/vulkan-zig/generator/index.zig");
+const zigvulkan = @import("lib/vulkan-zig/build.zig");
+
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
@@ -15,6 +19,14 @@ pub fn build(b: *std.build.Builder) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
+    
+    // vulkan-zig: Create a step that generates vk.zig (stored in zig-cache) from the provided vulkan registry.
+    const gen = vkgen.VkGenerateStep.init(b, "lib/vulkan-zig/examples/vk.xml", "vk.zig");
+    exe.addPackage(gen.package);
+
+    // mach-glfw
+    exe.addPackagePath("glfw", "lib/mach-glfw/src/main.zig");
+    glfw.link(b, exe, .{});
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());
