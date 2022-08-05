@@ -8,5 +8,12 @@
         </build>
       </configuration>
     </target>
+    <target id="30693b52-8be5-4ced-be03-1418a80797a0" name="Zig Run" defaultType="TOOL">
+      <configuration id="b1c010b6-7bc0-4712-a203-a13ae2e00a9c" name="Zig Run">
+        <build type="TOOL">
+          <tool actionId="Tool_External Tools_Zig Run" />
+        </build>
+      </configuration>
+    </target>
   </component>
 </project>
