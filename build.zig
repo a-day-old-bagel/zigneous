@@ -19,7 +19,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
-    
+
     // vulkan-zig: Create a step that generates vk.zig (stored in zig-cache) from the provided vulkan registry.
     const gen = vkgen.VkGenerateStep.init(b, "lib/vulkan-zig/examples/vk.xml", "vk.zig");
     exe.addPackage(gen.package);
@@ -27,7 +27,7 @@ pub fn build(b: *std.build.Builder) void {
     // mach-glfw
     exe.addPackagePath("glfw", "lib/mach-glfw/src/main.zig");
     glfw.link(b, exe, .{});
-    
+
     // shader resources, to be compiled using glslc
     const res = zigvulkan.ResourceGenStep.init(b, "resources.zig");
     res.addShader("triangle_vert", "dat/triangle.vert");

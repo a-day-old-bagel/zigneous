@@ -47,7 +47,8 @@ pub fn main() !void {
     var extent = vk.Extent2D{ .width = 800, .height = 600 };
 
     const window = try glfw.Window.create(extent.width, extent.height, app_name, null, null, .{
-        .client_api = .no_api, .resizable = false,
+        .client_api = .no_api,
+        .resizable = false,
     });
     defer window.destroy();
 

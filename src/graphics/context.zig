@@ -95,7 +95,7 @@ pub const GraphicsContext = struct {
 
     pub fn init(allocator: Allocator, app_name: [*:0]const u8, window: glfw.Window) !GraphicsContext {
         var self: GraphicsContext = undefined;
-        const vk_proc = @ptrCast(fn (instance: vk.Instance, procname: [*:0]const u8) callconv(.C) vk.PfnVoidFunction, glfw.getInstanceProcAddress);
+        const vk_proc = @ptrCast(*const fn (instance: vk.Instance, procname: [*:0]const u8) callconv(.C) vk.PfnVoidFunction, &glfw.getInstanceProcAddress);
         self.vkb = try BaseDispatch.load(vk_proc);
 
         const glfw_exts = try glfw.getRequiredInstanceExtensions();
@@ -144,7 +144,7 @@ pub const GraphicsContext = struct {
         self.vki.destroyInstance(self.instance, null);
     }
 
-    pub fn deviceName(self: GraphicsContext) []const u8 {
+    pub fn deviceName(self: *const GraphicsContext) []const u8 {
         const len = std.mem.indexOfScalar(u8, &self.props.device_name, 0).?;
         return self.props.device_name[0..len];
     }
