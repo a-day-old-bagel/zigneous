@@ -4,7 +4,7 @@ const glfw = @import("lib/mach-glfw/build.zig");
 const vkgen = @import("lib/vulkan-zig/generator/index.zig");
 const zigvulkan = @import("lib/vulkan-zig/build.zig");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.build.Builder) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -25,8 +25,8 @@ pub fn build(b: *std.build.Builder) void {
     exe.addPackage(gen.package);
 
     // mach-glfw
-    exe.addPackagePath("glfw", "lib/mach-glfw/src/main.zig");
-    glfw.link(b, exe, .{});
+    exe.addPackage(glfw.pkg);
+    try glfw.link(b, exe, .{});
 
     // shader resources, to be compiled using glslc
     const res = zigvulkan.ResourceGenStep.init(b, "resources.zig");
