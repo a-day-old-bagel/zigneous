@@ -3,4 +3,4 @@
 	url = ../../hexops/mach-glfw
 [submodule "lib/vulkan-zig"]
 	path = lib/vulkan-zig
-	url = ../../snektron/vulkan-zig
+	url = ../../a-day-old-bagel/vulkan-zig
