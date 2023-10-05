@@ -1,0 +1,10 @@
+.{
+    .name = "Zigneous",
+    .version = "0.1.1",
+    .dependencies = .{
+        .mach_glfw = .{
+            .url = "https://pkg.machengine.org/mach-glfw/141de88277a1a2b03ce7457ae34898ef8837a112.tar.gz",
+            .hash = "122093a28f35a342e6f6415537b94b829a7e9b62ad94d5cb35f3525eeaa243e94068",
+        },
+    },
+}

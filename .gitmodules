@@ -1,6 +1,3 @@
-[submodule "lib/mach-glfw"]
-	path = lib/mach-glfw
-	url = ../../hexops/mach-glfw
 [submodule "lib/vulkan-zig"]
 	path = lib/vulkan-zig
 	url = ../../a-day-old-bagel/vulkan-zig

@@ -1,5 +1,5 @@
 # Zigneous
 
-### An experiment in voxel raymarching that someday hopes to maybe be a game.
+### A Helper for Using SDL3 and Vulkan in Zig
 
-Uses Zig and Vulkan to iterate on my previous voxel raymarching projects, previously written in C++.
+This doesn't work at all yet. For the moment it still relies on GLFW instead of SDL. Updates soonish possibly maybe.
