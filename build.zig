@@ -25,14 +25,6 @@ pub fn build(b: *std.build.Builder) !void {
     const zsdl_pkg = zsdl.package(b, target, optimize, .{});
     zsdl_pkg.link(exe);
 
-    // mach-glfw
-    const glfw_dep = b.dependency("mach_glfw", .{
-        .target = exe.target,
-        .optimize = exe.optimize,
-    });
-    exe.addModule("glfw", glfw_dep.module("mach-glfw"));
-    @import("mach_glfw").link(glfw_dep.builder, exe);
-
     // shaders, to be compiled using glslc
     const shader_comp = vkgen.ShaderCompileStep.create(b, &[_][]const u8{"glslc", "--target-env=vulkan1.2"}, "-o");
     shader_comp.add("triangle_frag", "dat/triangle.frag", .{});
