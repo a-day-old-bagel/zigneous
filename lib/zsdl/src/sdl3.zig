@@ -161,10 +161,10 @@ pub const Window = opaque {
         tooltip: bool = false,
         popup_menu: bool = false,
         keyboard_grabbed: bool = false,
-        __unused21: u7 = 0,
+        __unused24: u7 = 0,
         vulkan: bool = false,
         metal: bool = false,
-        __unused27: u2 = 0,
+        __unused30: u2 = 0,
     };
 
     pub const pos_undefined = posUndefinedDisplay(0);
