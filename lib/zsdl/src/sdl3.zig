@@ -1064,13 +1064,11 @@ pub const vk = struct {
     pub const Instance = enum(usize) { null_handle = 0, _ };
 
     pub fn loadLibrary(path: ?[*:0]const u8) Error!void {
-        // if (SDL_Vulkan_LoadLibrary(null))
         if (SDL_Vulkan_LoadLibrary(path) < 0) return makeError();
     }
     extern fn SDL_Vulkan_LoadLibrary(path: ?[*]const u8) i32;
 
     pub fn getVkGetInstanceProcAddr() FunctionPointer {
-        std.debug.print("GOT IT 0\n", .{});
         return SDL_Vulkan_GetVkGetInstanceProcAddr();
     }
     extern fn SDL_Vulkan_GetVkGetInstanceProcAddr() FunctionPointer;
