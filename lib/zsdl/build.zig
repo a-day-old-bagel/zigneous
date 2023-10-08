@@ -59,7 +59,7 @@ pub fn package(
 
     if (target.isWindows()) {
         install_step.dependOn(
-            &b.addInstallFile(.{ .path = thisDir() ++ "/libs/x86_64-windows-gnu/bin/SDL3.dll" }, "bin/SDL3.dll").step,
+            &b.addInstallFile(.{ .path = thisDir() ++ "/libs/x86_64-windows/bin/SDL3.dll" }, "bin/SDL3.dll").step,
         );
     } else unreachable;
 

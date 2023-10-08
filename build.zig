@@ -1,6 +1,6 @@
 const std = @import("std");
 
-// const glfw = @import("lib/mach-glfw/build.zig");
+const zsdl = @import("lib/zsdl/build.zig");
 const vkgen = @import("lib/vulkan-zig/generator/index.zig");
 const zigvulkan = @import("lib/vulkan-zig/build.zig");
 
@@ -9,7 +9,7 @@ pub fn build(b: *std.build.Builder) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "Zigneous Example",
+        .name = "Zigneous_Example",
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
@@ -20,6 +20,10 @@ pub fn build(b: *std.build.Builder) !void {
     // vulkan-zig
     const gen = vkgen.VkGenerateStep.create(b, "lib/vulkan-zig/examples/vk.xml");
     exe.addModule("vulkan", gen.getModule());
+
+    // zsdl
+    const zsdl_pkg = zsdl.package(b, target, optimize, .{});
+    zsdl_pkg.link(exe);
 
     // mach-glfw
     const glfw_dep = b.dependency("mach_glfw", .{

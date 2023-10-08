@@ -1,8 +1,8 @@
 const std = @import("std");
 const vk = @import("vulkan");
-const glfw = @import("glfw");
+// const glfw = @import("glfw");
 const shaders = @import("shaders");
-const GraphicsContext = @import("context.zig").GraphicsContext;
+const PlatformContext = @import("platform_context.zig").PlatformContext;
 const Swapchain = @import("swapchain.zig").Swapchain;
 const Allocator = std.mem.Allocator;
 
@@ -40,65 +40,43 @@ const vertices = [_]Vertex{
     .{ .pos = .{ -0.5, 0.5 }, .color = .{ 0, 0, 1 } },
 };
 
-/// Default GLFW error handling callback
-fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
-    std.log.err("glfw: {}: {s}\n", .{ error_code, description });
-}
-
 pub fn main() !void {
-    glfw.setErrorCallback(errorCallback);
-    if (!glfw.init(.{})) {
-        std.log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
-        std.process.exit(1);
-    }
-    defer glfw.terminate();
-
-    var extent = vk.Extent2D{ .width = 800, .height = 600 };
-
-    const window = glfw.Window.create(extent.width, extent.height, app_name, null, null, .{
-        .client_api = .no_api,
-        .resizable = false,
-    }) orelse {
-        std.log.err("failed to create GLFW window: {?s}", .{ glfw.getErrorString() });
-        std.process.exit(1);
-    };
-    defer window.destroy();
 
     const allocator = std.heap.page_allocator;
 
-    const gc = try GraphicsContext.init(allocator, app_name, window);
-    defer gc.deinit();
+    var pc = try PlatformContext.init(allocator, app_name);
+    defer pc.deinit();
 
-    std.debug.print("Using device: {s}\n", .{gc.deviceName()});
+    std.debug.print("Using device: {s}\n", .{pc.deviceName()});
 
-    var swapchain = try Swapchain.init(&gc, allocator, extent);
+    var swapchain = try Swapchain.init(allocator, &pc);
     defer swapchain.deinit();
 
-    const pipeline_layout = try gc.vkd.createPipelineLayout(gc.dev, &.{
+    const pipeline_layout = try pc.vkd.createPipelineLayout(pc.dev, &.{
         .flags = .{},
         .set_layout_count = 0,
         .p_set_layouts = undefined,
         .push_constant_range_count = 0,
         .p_push_constant_ranges = undefined,
     }, null);
-    defer gc.vkd.destroyPipelineLayout(gc.dev, pipeline_layout, null);
+    defer pc.vkd.destroyPipelineLayout(pc.dev, pipeline_layout, null);
 
-    const render_pass = try createRenderPass(&gc, swapchain);
-    defer gc.vkd.destroyRenderPass(gc.dev, render_pass, null);
+    const render_pass = try createRenderPass(&pc, swapchain);
+    defer pc.vkd.destroyRenderPass(pc.dev, render_pass, null);
 
-    var pipeline = try createPipeline(&gc, pipeline_layout, render_pass);
-    defer gc.vkd.destroyPipeline(gc.dev, pipeline, null);
+    var pipeline = try createPipeline(&pc, pipeline_layout, render_pass);
+    defer pc.vkd.destroyPipeline(pc.dev, pipeline, null);
 
-    var framebuffers = try createFramebuffers(&gc, allocator, render_pass, swapchain);
-    defer destroyFramebuffers(&gc, allocator, framebuffers);
+    var framebuffers = try createFramebuffers(&pc, allocator, render_pass, swapchain);
+    defer destroyFramebuffers(&pc, allocator, framebuffers);
 
-    const pool = try gc.vkd.createCommandPool(gc.dev, &.{
+    const pool = try pc.vkd.createCommandPool(pc.dev, &.{
         .flags = .{},
-        .queue_family_index = gc.graphics_queue.family,
+        .queue_family_index = pc.graphics_queue.family,
     }, null);
-    defer gc.vkd.destroyCommandPool(gc.dev, pool, null);
+    defer pc.vkd.destroyCommandPool(pc.dev, pool, null);
 
-    const buffer = try gc.vkd.createBuffer(gc.dev, &.{
+    const buffer = try pc.vkd.createBuffer(pc.dev, &.{
         .flags = .{},
         .size = @sizeOf(@TypeOf(vertices)),
         .usage = .{ .transfer_dst_bit = true, .vertex_buffer_bit = true },
@@ -106,16 +84,16 @@ pub fn main() !void {
         .queue_family_index_count = 0,
         .p_queue_family_indices = undefined,
     }, null);
-    defer gc.vkd.destroyBuffer(gc.dev, buffer, null);
-    const mem_reqs = gc.vkd.getBufferMemoryRequirements(gc.dev, buffer);
-    const memory = try gc.allocate(mem_reqs, .{ .device_local_bit = true });
-    defer gc.vkd.freeMemory(gc.dev, memory, null);
-    try gc.vkd.bindBufferMemory(gc.dev, buffer, memory, 0);
+    defer pc.vkd.destroyBuffer(pc.dev, buffer, null);
+    const mem_reqs = pc.vkd.getBufferMemoryRequirements(pc.dev, buffer);
+    const memory = try pc.allocate(mem_reqs, .{ .device_local_bit = true });
+    defer pc.vkd.freeMemory(pc.dev, memory, null);
+    try pc.vkd.bindBufferMemory(pc.dev, buffer, memory, 0);
 
-    try uploadVertices(&gc, pool, buffer);
+    try uploadVertices(&pc, pool, buffer);
 
     var cmdbufs = try createCommandBuffers(
-        &gc,
+        &pc,
         pool,
         allocator,
         buffer,
@@ -124,9 +102,9 @@ pub fn main() !void {
         pipeline,
         framebuffers,
     );
-    defer destroyCommandBuffers(&gc, pool, allocator, cmdbufs);
+    defer destroyCommandBuffers(&pc, pool, allocator, cmdbufs);
 
-    while (!window.shouldClose()) {
+    for (0..600) |_| {
         const cmdbuf = cmdbufs[swapchain.image_index];
 
         const state = swapchain.present(cmdbuf) catch |err| switch (err) {
@@ -135,17 +113,21 @@ pub fn main() !void {
         };
 
         if (state == .suboptimal) {
-            const size = window.getSize();
-            extent.width = @as(u32, @intCast(size.width));
-            extent.height = @as(u32, @intCast(size.height));
-            try swapchain.recreate(extent);
+            var current_width: i32 = -1;
+            var current_height: i32 = -1;
+            try pc.sdl_window.getSize(&current_width, &current_height);
+            if (current_width > 0 and current_height > 0) {
+                pc.extent.width = @as(u32, @intCast(current_width));
+                pc.extent.height = @as(u32, @intCast(current_height));
+            }
+            try swapchain.recreate();
 
-            destroyFramebuffers(&gc, allocator, framebuffers);
-            framebuffers = try createFramebuffers(&gc, allocator, render_pass, swapchain);
+            destroyFramebuffers(&pc, allocator, framebuffers);
+            framebuffers = try createFramebuffers(&pc, allocator, render_pass, swapchain);
 
-            destroyCommandBuffers(&gc, pool, allocator, cmdbufs);
+            destroyCommandBuffers(&pc, pool, allocator, cmdbufs);
             cmdbufs = try createCommandBuffers(
-                &gc,
+                &pc,
                 pool,
                 allocator,
                 buffer,
@@ -155,15 +137,13 @@ pub fn main() !void {
                 framebuffers,
             );
         }
-
-        glfw.pollEvents();
     }
 
     try swapchain.waitForAllFences();
 }
 
-fn uploadVertices(gc: *const GraphicsContext, pool: vk.CommandPool, buffer: vk.Buffer) !void {
-    const staging_buffer = try gc.vkd.createBuffer(gc.dev, &.{
+fn uploadVertices(pc: *const PlatformContext, pool: vk.CommandPool, buffer: vk.Buffer) !void {
+    const staging_buffer = try pc.vkd.createBuffer(pc.dev, &.{
         .flags = .{},
         .size = @sizeOf(@TypeOf(vertices)),
         .usage = .{ .transfer_src_bit = true },
@@ -171,15 +151,15 @@ fn uploadVertices(gc: *const GraphicsContext, pool: vk.CommandPool, buffer: vk.B
         .queue_family_index_count = 0,
         .p_queue_family_indices = undefined,
     }, null);
-    defer gc.vkd.destroyBuffer(gc.dev, staging_buffer, null);
-    const mem_reqs = gc.vkd.getBufferMemoryRequirements(gc.dev, staging_buffer);
-    const staging_memory = try gc.allocate(mem_reqs, .{ .host_visible_bit = true, .host_coherent_bit = true });
-    defer gc.vkd.freeMemory(gc.dev, staging_memory, null);
-    try gc.vkd.bindBufferMemory(gc.dev, staging_buffer, staging_memory, 0);
+    defer pc.vkd.destroyBuffer(pc.dev, staging_buffer, null);
+    const mem_reqs = pc.vkd.getBufferMemoryRequirements(pc.dev, staging_buffer);
+    const staging_memory = try pc.allocate(mem_reqs, .{ .host_visible_bit = true, .host_coherent_bit = true });
+    defer pc.vkd.freeMemory(pc.dev, staging_memory, null);
+    try pc.vkd.bindBufferMemory(pc.dev, staging_buffer, staging_memory, 0);
 
     {
-        const data = try gc.vkd.mapMemory(gc.dev, staging_memory, 0, vk.WHOLE_SIZE, .{});
-        defer gc.vkd.unmapMemory(gc.dev, staging_memory);
+        const data = try pc.vkd.mapMemory(pc.dev, staging_memory, 0, vk.WHOLE_SIZE, .{});
+        defer pc.vkd.unmapMemory(pc.dev, staging_memory);
 
         const gpu_vertices = @as([*]Vertex, @alignCast(@ptrCast(data)));
         for (vertices, 0..) |vertex, i| {
@@ -187,19 +167,19 @@ fn uploadVertices(gc: *const GraphicsContext, pool: vk.CommandPool, buffer: vk.B
         }
     }
 
-    try copyBuffer(gc, pool, buffer, staging_buffer, @sizeOf(@TypeOf(vertices)));
+    try copyBuffer(pc, pool, buffer, staging_buffer, @sizeOf(@TypeOf(vertices)));
 }
 
-fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, src: vk.Buffer, size: vk.DeviceSize) !void {
+fn copyBuffer(pc: *const PlatformContext, pool: vk.CommandPool, dst: vk.Buffer, src: vk.Buffer, size: vk.DeviceSize) !void {
     var cmdbuf: vk.CommandBuffer = undefined;
-    try gc.vkd.allocateCommandBuffers(gc.dev, &.{
+    try pc.vkd.allocateCommandBuffers(pc.dev, &.{
         .command_pool = pool,
         .level = .primary,
         .command_buffer_count = 1,
     }, @as([*]vk.CommandBuffer, @ptrCast(&cmdbuf)));
-    defer gc.vkd.freeCommandBuffers(gc.dev, pool, 1, @as([*]const vk.CommandBuffer, @ptrCast(&cmdbuf)));
+    defer pc.vkd.freeCommandBuffers(pc.dev, pool, 1, @as([*]const vk.CommandBuffer, @ptrCast(&cmdbuf)));
 
-    try gc.vkd.beginCommandBuffer(cmdbuf, &.{
+    try pc.vkd.beginCommandBuffer(cmdbuf, &.{
         .flags = .{ .one_time_submit_bit = true },
         .p_inheritance_info = null,
     });
@@ -209,9 +189,9 @@ fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, 
         .dst_offset = 0,
         .size = size,
     };
-    gc.vkd.cmdCopyBuffer(cmdbuf, src, dst, 1, @as([*]const vk.BufferCopy, @ptrCast(&region)));
+    pc.vkd.cmdCopyBuffer(cmdbuf, src, dst, 1, @as([*]const vk.BufferCopy, @ptrCast(&region)));
 
-    try gc.vkd.endCommandBuffer(cmdbuf);
+    try pc.vkd.endCommandBuffer(cmdbuf);
 
     const si = vk.SubmitInfo{
         .wait_semaphore_count = 0,
@@ -222,12 +202,12 @@ fn copyBuffer(gc: *const GraphicsContext, pool: vk.CommandPool, dst: vk.Buffer, 
         .signal_semaphore_count = 0,
         .p_signal_semaphores = undefined,
     };
-    try gc.vkd.queueSubmit(gc.graphics_queue.handle, 1, @as([*]const vk.SubmitInfo, @ptrCast(&si)), .null_handle);
-    try gc.vkd.queueWaitIdle(gc.graphics_queue.handle);
+    try pc.vkd.queueSubmit(pc.graphics_queue.handle, 1, @as([*]const vk.SubmitInfo, @ptrCast(&si)), .null_handle);
+    try pc.vkd.queueWaitIdle(pc.graphics_queue.handle);
 }
 
 fn createCommandBuffers(
-    gc: *const GraphicsContext,
+    pc: *const PlatformContext,
     pool: vk.CommandPool,
     allocator: Allocator,
     buffer: vk.Buffer,
@@ -239,12 +219,12 @@ fn createCommandBuffers(
     const cmdbufs = try allocator.alloc(vk.CommandBuffer, framebuffers.len);
     errdefer allocator.free(cmdbufs);
 
-    try gc.vkd.allocateCommandBuffers(gc.dev, &.{
+    try pc.vkd.allocateCommandBuffers(pc.dev, &.{
         .command_pool = pool,
         .level = .primary,
         .command_buffer_count = @as(u32, @truncate(cmdbufs.len)),
     }, cmdbufs.ptr);
-    errdefer gc.vkd.freeCommandBuffers(gc.dev, pool, @as(u32, @truncate(cmdbufs.len)), cmdbufs.ptr);
+    errdefer pc.vkd.freeCommandBuffers(pc.dev, pool, @as(u32, @truncate(cmdbufs.len)), cmdbufs.ptr);
 
     const clear = vk.ClearValue{
         .color = .{ .float_32 = .{ 0, 0, 0, 1 } },
@@ -265,13 +245,13 @@ fn createCommandBuffers(
     };
 
     for (cmdbufs, 0..) |cmdbuf, i| {
-        try gc.vkd.beginCommandBuffer(cmdbuf, &.{
+        try pc.vkd.beginCommandBuffer(cmdbuf, &.{
             .flags = .{},
             .p_inheritance_info = null,
         });
 
-        gc.vkd.cmdSetViewport(cmdbuf, 0, 1, @as([*]const vk.Viewport, @ptrCast(&viewport)));
-        gc.vkd.cmdSetScissor(cmdbuf, 0, 1, @as([*]const vk.Rect2D, @ptrCast(&scissor)));
+        pc.vkd.cmdSetViewport(cmdbuf, 0, 1, @as([*]const vk.Viewport, @ptrCast(&viewport)));
+        pc.vkd.cmdSetScissor(cmdbuf, 0, 1, @as([*]const vk.Rect2D, @ptrCast(&scissor)));
 
         // This needs to be a separate definition - see https://github.com/ziglang/zig/issues/7627.
         const render_area = vk.Rect2D{
@@ -279,7 +259,7 @@ fn createCommandBuffers(
             .extent = extent,
         };
 
-        gc.vkd.cmdBeginRenderPass(cmdbuf, &.{
+        pc.vkd.cmdBeginRenderPass(cmdbuf, &.{
             .render_pass = render_pass,
             .framebuffer = framebuffers[i],
             .render_area = render_area,
@@ -287,32 +267,32 @@ fn createCommandBuffers(
             .p_clear_values = @as([*]const vk.ClearValue, @ptrCast(&clear)),
         }, .@"inline");
 
-        gc.vkd.cmdBindPipeline(cmdbuf, .graphics, pipeline);
+        pc.vkd.cmdBindPipeline(cmdbuf, .graphics, pipeline);
         const offset = [_]vk.DeviceSize{0};
-        gc.vkd.cmdBindVertexBuffers(cmdbuf, 0, 1, @as([*]const vk.Buffer, @ptrCast(&buffer)), &offset);
-        gc.vkd.cmdDraw(cmdbuf, vertices.len, 1, 0, 0);
+        pc.vkd.cmdBindVertexBuffers(cmdbuf, 0, 1, @as([*]const vk.Buffer, @ptrCast(&buffer)), &offset);
+        pc.vkd.cmdDraw(cmdbuf, vertices.len, 1, 0, 0);
 
-        gc.vkd.cmdEndRenderPass(cmdbuf);
-        try gc.vkd.endCommandBuffer(cmdbuf);
+        pc.vkd.cmdEndRenderPass(cmdbuf);
+        try pc.vkd.endCommandBuffer(cmdbuf);
     }
 
     return cmdbufs;
 }
 
-fn destroyCommandBuffers(gc: *const GraphicsContext, pool: vk.CommandPool, allocator: Allocator, cmdbufs: []vk.CommandBuffer) void {
-    gc.vkd.freeCommandBuffers(gc.dev, pool, @as(u32, @truncate(cmdbufs.len)), cmdbufs.ptr);
+fn destroyCommandBuffers(pc: *const PlatformContext, pool: vk.CommandPool, allocator: Allocator, cmdbufs: []vk.CommandBuffer) void {
+    pc.vkd.freeCommandBuffers(pc.dev, pool, @as(u32, @truncate(cmdbufs.len)), cmdbufs.ptr);
     allocator.free(cmdbufs);
 }
 
-fn createFramebuffers(gc: *const GraphicsContext, allocator: Allocator, render_pass: vk.RenderPass, swapchain: Swapchain) ![]vk.Framebuffer {
+fn createFramebuffers(pc: *const PlatformContext, allocator: Allocator, render_pass: vk.RenderPass, swapchain: Swapchain) ![]vk.Framebuffer {
     const framebuffers = try allocator.alloc(vk.Framebuffer, swapchain.swap_images.len);
     errdefer allocator.free(framebuffers);
 
     var i: usize = 0;
-    errdefer for (framebuffers[0..i]) |fb| gc.vkd.destroyFramebuffer(gc.dev, fb, null);
+    errdefer for (framebuffers[0..i]) |fb| pc.vkd.destroyFramebuffer(pc.dev, fb, null);
 
     for (framebuffers) |*fb| {
-        fb.* = try gc.vkd.createFramebuffer(gc.dev, &.{
+        fb.* = try pc.vkd.createFramebuffer(pc.dev, &.{
             .flags = .{},
             .render_pass = render_pass,
             .attachment_count = 1,
@@ -327,12 +307,12 @@ fn createFramebuffers(gc: *const GraphicsContext, allocator: Allocator, render_p
     return framebuffers;
 }
 
-fn destroyFramebuffers(gc: *const GraphicsContext, allocator: Allocator, framebuffers: []const vk.Framebuffer) void {
-    for (framebuffers) |fb| gc.vkd.destroyFramebuffer(gc.dev, fb, null);
+fn destroyFramebuffers(pc: *const PlatformContext, allocator: Allocator, framebuffers: []const vk.Framebuffer) void {
+    for (framebuffers) |fb| pc.vkd.destroyFramebuffer(pc.dev, fb, null);
     allocator.free(framebuffers);
 }
 
-fn createRenderPass(gc: *const GraphicsContext, swapchain: Swapchain) !vk.RenderPass {
+fn createRenderPass(pc: *const PlatformContext, swapchain: Swapchain) !vk.RenderPass {
     const color_attachment = vk.AttachmentDescription{
         .flags = .{},
         .format = swapchain.surface_format.format,
@@ -363,7 +343,7 @@ fn createRenderPass(gc: *const GraphicsContext, swapchain: Swapchain) !vk.Render
         .p_preserve_attachments = undefined,
     };
 
-    return try gc.vkd.createRenderPass(gc.dev, &.{
+    return try pc.vkd.createRenderPass(pc.dev, &.{
         .flags = .{},
         .attachment_count = 1,
         .p_attachments = @as([*]const vk.AttachmentDescription, @ptrCast(&color_attachment)),
@@ -375,23 +355,23 @@ fn createRenderPass(gc: *const GraphicsContext, swapchain: Swapchain) !vk.Render
 }
 
 fn createPipeline(
-    gc: *const GraphicsContext,
+    pc: *const PlatformContext,
     layout: vk.PipelineLayout,
     render_pass: vk.RenderPass,
 ) !vk.Pipeline {
-    const vert = try gc.vkd.createShaderModule(gc.dev, &.{
+    const vert = try pc.vkd.createShaderModule(pc.dev, &.{
         .flags = .{},
         .code_size = shaders.triangle_vert.len,
         .p_code = @as([*]const u32, @alignCast(@ptrCast(&shaders.triangle_vert))),
     }, null);
-    defer gc.vkd.destroyShaderModule(gc.dev, vert, null);
+    defer pc.vkd.destroyShaderModule(pc.dev, vert, null);
 
-    const frag = try gc.vkd.createShaderModule(gc.dev, &.{
+    const frag = try pc.vkd.createShaderModule(pc.dev, &.{
         .flags = .{},
         .code_size = shaders.triangle_frag.len,
         .p_code = @as([*]const u32, @alignCast(@ptrCast(&shaders.triangle_frag))),
     }, null);
-    defer gc.vkd.destroyShaderModule(gc.dev, frag, null);
+    defer pc.vkd.destroyShaderModule(pc.dev, frag, null);
 
     const pssci = [_]vk.PipelineShaderStageCreateInfo{
         .{
@@ -504,8 +484,8 @@ fn createPipeline(
     };
 
     var pipeline: vk.Pipeline = undefined;
-    _ = try gc.vkd.createGraphicsPipelines(
-        gc.dev,
+    _ = try pc.vkd.createGraphicsPipelines(
+        pc.dev,
         .null_handle,
         1,
         @as([*]const vk.GraphicsPipelineCreateInfo, @ptrCast(&gpci)),
