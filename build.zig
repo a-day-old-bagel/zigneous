@@ -14,7 +14,6 @@ pub fn build(b: *std.build.Builder) !void {
         .target = target,
         .optimize = optimize,
     });
-    // if (exe.optimize != .Debug) exe.want_lto = false; // Problems with LTO in Release modes on Windows.
     b.installArtifact(exe);
 
     // vulkan-zig

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Zig Run" type="CLionExternalRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="zigneous" TARGET_NAME="Zig Run" CONFIG_NAME="Zig Run">
+  <configuration default="false" name="Zig Run" type="CLionExternalRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/zig-out/bin" PASS_PARENT_ENVS_2="true" PROJECT_NAME="zigneous" TARGET_NAME="Zig Build" CONFIG_NAME="Zig Build" RUN_PATH="$PROJECT_DIR$/zig-out/bin/Zigneous_Example.exe">
     <method v="2">
       <option name="CLION.EXTERNAL.BUILD" enabled="true" />
     </method>
